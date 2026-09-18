@@ -102,6 +102,7 @@ public class UltimatePhageCoreBlock extends Block implements EntityBlock {
                     if (f.bullet != null && !f.bullet.isRemoved()) f.bullet.discard();
                 }
                 core.particleFlights.clear();
+                core.wardenFlights.clear();
             }
         }
         super.onRemove(state, level, pos, newState, moved);
@@ -147,6 +148,9 @@ public class UltimatePhageCoreBlock extends Block implements EntityBlock {
             }
         }
         core.pendingProjectiles.removeAll(projRemove);
+
+        tickWardenFlights(level, core);
+
         if (core.projectileCooldown > 0) core.projectileCooldown--;
 
         if (level.getGameTime() % 40 == 0) {
@@ -412,6 +416,59 @@ public class UltimatePhageCoreBlock extends Block implements EntityBlock {
         core.particleFlights.removeAll(done);
     }
 
+    private static void tickWardenFlights(ServerLevel level, UltimatePhageCoreBlockEntity core) {
+        List<UltimatePhageCoreBlockEntity.WardenFlight> done = new ArrayList<>();
+
+        for (var flight : core.wardenFlights) {
+            if (flight.target == null || !flight.target.isAlive()) {
+                done.add(flight);
+                continue;
+            }
+
+            flight.ticksElapsed++;
+
+            Vec3 toTarget = flight.target.getEyePosition().subtract(flight.position);
+            double distance = toTarget.length();
+
+            if (distance <= 1.0 || flight.ticksElapsed >= flight.maxTicks) {
+                hitWarden(level, flight.target);
+                done.add(flight);
+                continue;
+            }
+
+            Vec3 desiredVelocity = toTarget.normalize().scale(0.6);
+            flight.velocity = flight.velocity.scale(0.82).add(desiredVelocity.scale(0.18));
+            if (flight.velocity.lengthSqr() > 0.36) {
+                flight.velocity = flight.velocity.normalize().scale(0.6);
+            }
+            flight.position = flight.position.add(flight.velocity);
+
+            level.sendParticles(ParticleTypes.SCULK_SOUL,
+                    flight.position.x, flight.position.y, flight.position.z,
+                    3, 0.04, 0.04, 0.04, 0.01);
+            level.sendParticles(ParticleTypes.END_ROD,
+                    flight.position.x, flight.position.y, flight.position.z,
+                    1, 0.02, 0.02, 0.02, 0.005);
+        }
+
+        core.wardenFlights.removeAll(done);
+    }
+
+    private static void hitWarden(ServerLevel level, Warden target) {
+        if (!target.isAlive()) return;
+
+        target.hurt(level.damageSources().generic(), 6.0F);
+        level.sendParticles(ParticleTypes.SCULK_SOUL,
+                target.getX(), target.getY() + 1.0, target.getZ(),
+                24, 0.35, 0.6, 0.35, 0.1);
+        level.sendParticles(ParticleTypes.SONIC_BOOM,
+                target.getX(), target.getY() + 1.0, target.getZ(),
+                1, 0, 0, 0, 0);
+        level.playSound(null, target.blockPosition(),
+                SoundEvents.SCULK_SHRIEKER_SHRIEK, SoundSource.HOSTILE,
+                1.2F, 1.4F);
+    }
+
     private static void fireAtNearbyWarden(ServerLevel level, UltimatePhageCoreBlockEntity core, RandomSource random) {
         Warden chosenWarden = null;
         BlockPos firingSeeker = null;
@@ -446,21 +503,17 @@ public class UltimatePhageCoreBlock extends Block implements EntityBlock {
 
         if (chosenWarden == null || firingSeeker == null) return;
 
-        UltimatePhageWardenProjectile projectile =
-                new UltimatePhageWardenProjectile(level, firingSeeker, chosenWarden);
-        projectile.setPos(
-                firingSeeker.getX() + 0.5,
-                firingSeeker.getY() + 0.5,
-                firingSeeker.getZ() + 0.5
-        );
-        projectile.setDeltaMovement(
-                chosenWarden.position().subtract(projectile.position()).normalize().scale(0.6)
-        );
-        level.addFreshEntity(projectile);
+        Vec3 start = Vec3.atCenterOf(firingSeeker);
+        Vec3 initialVelocity = chosenWarden.getEyePosition().subtract(start).normalize().scale(0.6);
+        core.wardenFlights.add(new UltimatePhageCoreBlockEntity.WardenFlight(
+                start, initialVelocity, chosenWarden, 100));
 
         level.sendParticles(ParticleTypes.SCULK_SOUL,
-                firingSeeker.getX() + 0.5, firingSeeker.getY() + 0.5, firingSeeker.getZ() + 0.5,
-                12, 0.25, 0.25, 0.25, 0.04);
+                start.x, start.y, start.z,
+                16, 0.25, 0.25, 0.25, 0.05);
+        level.sendParticles(ParticleTypes.SONIC_BOOM,
+                start.x, start.y, start.z,
+                1, 0, 0, 0, 0);
         level.playSound(null, firingSeeker, SoundEvents.BLAZE_SHOOT, SoundSource.BLOCKS,
                 1.4F, 0.65F + random.nextFloat() * 0.15F);
 
