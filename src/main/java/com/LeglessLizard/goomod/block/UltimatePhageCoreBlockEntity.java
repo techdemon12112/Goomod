@@ -7,6 +7,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.entity.projectile.ShulkerBullet;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -24,7 +25,7 @@ public class UltimatePhageCoreBlockEntity extends BlockEntity {
     public int xpAccumulated = 0;
     public final List<ItemStack> collectedOres = new ArrayList<>();
     public boolean isReturning = false;
-    public int phase = 0;         // 0=idle, 1=pulsing, 2=absorbing, 3=forming, 4=consuming
+    public int phase = 0;
     public int phaseTicks = 0;
     public int projectileCooldown = 0;
     public int projectilesThisTick = 0;
@@ -32,8 +33,8 @@ public class UltimatePhageCoreBlockEntity extends BlockEntity {
 
     public final Set<BlockPos> linkedSeekers = new HashSet<>();
     public final List<PendingProjectile> pendingProjectiles = new ArrayList<>();
+    public final List<WardenFlight> wardenFlights = new ArrayList<>();
 
-    // Convergence state
     public Vec3 sphereCenter = Vec3.ZERO;
     public double sphereRadius = 0;
     public final List<Vec3> spherePoints = new ArrayList<>();
@@ -109,6 +110,21 @@ public class UltimatePhageCoreBlockEntity extends BlockEntity {
             this.to = to;
             this.targetBlock = targetBlock;
             this.totalTicks = totalTicks;
+        }
+    }
+
+    public static class WardenFlight {
+        public Vec3 position;
+        public Vec3 velocity;
+        public final Warden target;
+        public final int maxTicks;
+        public int ticksElapsed = 0;
+
+        public WardenFlight(Vec3 position, Vec3 velocity, Warden target, int maxTicks) {
+            this.position = position;
+            this.velocity = velocity;
+            this.target = target;
+            this.maxTicks = maxTicks;
         }
     }
 
