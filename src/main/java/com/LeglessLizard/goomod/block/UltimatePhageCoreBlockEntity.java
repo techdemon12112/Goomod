@@ -28,6 +28,7 @@ public class UltimatePhageCoreBlockEntity extends BlockEntity {
     public int phaseTicks = 0;
     public int projectileCooldown = 0;
     public int projectilesThisTick = 0;
+    public int wardenAttackCooldown = 0;
 
     public final Set<BlockPos> linkedSeekers = new HashSet<>();
     public final List<PendingProjectile> pendingProjectiles = new ArrayList<>();
