@@ -122,6 +122,7 @@ public class UltimatePhageCoreBlock extends Block implements EntityBlock {
         BlockEntity be = level.getBlockEntity(pos);
         if (!(be instanceof UltimatePhageCoreBlockEntity core)) return;
         core.projectilesThisTick = 0;
+        if (core.wardenAttackCooldown > 0) core.wardenAttackCooldown--;
 
         List<UltimatePhageCoreBlockEntity.PendingProjectile> projSnapshot = new ArrayList<>(core.pendingProjectiles);
         List<UltimatePhageCoreBlockEntity.PendingProjectile> projRemove = new ArrayList<>();
@@ -177,6 +178,10 @@ public class UltimatePhageCoreBlock extends Block implements EntityBlock {
         }
 
         drawFlights(level, core);
+
+        if (!core.isReturning && core.wardenAttackCooldown <= 0 && level.getGameTime() % 10 == 0) {
+            fireAtNearbyWarden(level, core, random);
+        }
 
         if (!core.isReturning && core.projectileCooldown <= 0) {
             if (random.nextInt(50) == 0) {
@@ -405,6 +410,61 @@ public class UltimatePhageCoreBlock extends Block implements EntityBlock {
             }
         }
         core.particleFlights.removeAll(done);
+    }
+
+    private static void fireAtNearbyWarden(ServerLevel level, UltimatePhageCoreBlockEntity core, RandomSource random) {
+        Warden chosenWarden = null;
+        BlockPos firingSeeker = null;
+        double bestDistance = Double.MAX_VALUE;
+
+        for (Warden warden : level.getEntities(EntityType.WARDEN, Warden::isAlive)) {
+            BlockPos nearestSeeker = null;
+            double nearestDistance = Double.MAX_VALUE;
+
+            for (BlockPos seekerPos : core.linkedSeekers) {
+                if (!level.isLoaded(seekerPos)) continue;
+                if (!(level.getBlockState(seekerPos).getBlock() instanceof UltimatePhageSeekerBlock)) continue;
+
+                double distance = warden.distanceToSqr(
+                        seekerPos.getX() + 0.5,
+                        seekerPos.getY() + 0.5,
+                        seekerPos.getZ() + 0.5
+                );
+
+                if (distance <= 20.0 * 20.0 && distance < nearestDistance) {
+                    nearestDistance = distance;
+                    nearestSeeker = seekerPos.immutable();
+                }
+            }
+
+            if (nearestSeeker != null && nearestDistance < bestDistance) {
+                bestDistance = nearestDistance;
+                chosenWarden = warden;
+                firingSeeker = nearestSeeker;
+            }
+        }
+
+        if (chosenWarden == null || firingSeeker == null) return;
+
+        UltimatePhageWardenProjectile projectile =
+                new UltimatePhageWardenProjectile(level, firingSeeker, chosenWarden);
+        projectile.setPos(
+                firingSeeker.getX() + 0.5,
+                firingSeeker.getY() + 0.5,
+                firingSeeker.getZ() + 0.5
+        );
+        projectile.setDeltaMovement(
+                chosenWarden.position().subtract(projectile.position()).normalize().scale(0.6)
+        );
+        level.addFreshEntity(projectile);
+
+        level.sendParticles(ParticleTypes.SCULK_SOUL,
+                firingSeeker.getX() + 0.5, firingSeeker.getY() + 0.5, firingSeeker.getZ() + 0.5,
+                12, 0.25, 0.25, 0.25, 0.04);
+        level.playSound(null, firingSeeker, SoundEvents.BLAZE_SHOOT, SoundSource.BLOCKS,
+                1.4F, 0.65F + random.nextFloat() * 0.15F);
+
+        core.wardenAttackCooldown = 20;
     }
 
     public static int projectileBudget(UltimatePhageCoreBlockEntity core) {
