@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "QQQ",
+    "OWO",
+    "QQQ"
+  ],
+  "key": {
+    "Q": { "item": "minecraft:quartz" },
+    "O": { "item": "minecraft:obsidian" },
+    "W": { "item": "minecraft:water_bucket" }
+  },
+  "result": {
+    "id": "goomod:phage_disruptor",
+    "count": 1
+  },
+  "remainders": [
+    null, null, null,
+    null, { "item": "minecraft:bucket" }, null,
+    null, null, null
+  ]
+}

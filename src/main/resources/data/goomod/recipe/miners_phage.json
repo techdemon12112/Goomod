@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "GIG",
+    "CPC",
+    "GLG"
+  ],
+  "key": {
+    "G": { "item": "minecraft:glowstone" },
+    "I": { "item": "minecraft:iron_block" },
+    "C": { "item": "minecraft:coal_block" },
+    "P": { "item": "goomod:clean_phage" },
+    "L": { "tag": "minecraft:logs" }
+  },
+  "result": {
+    "id": "goomod:miners_phage",
+    "count": 1
+  }
+}

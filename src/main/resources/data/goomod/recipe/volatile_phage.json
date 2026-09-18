@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "TBT",
+    "RPR",
+    "TFT"
+  ],
+  "key": {
+    "T": { "item": "minecraft:tnt" },
+    "B": { "item": "minecraft:blaze_powder" },
+    "R": { "item": "minecraft:blaze_rod" },
+    "P": { "item": "goomod:basic_phage" },
+    "F": { "item": "minecraft:flint_and_steel" }
+  },
+  "result": {
+    "id": "goomod:volatile_phage",
+    "count": 1
+  }
+}

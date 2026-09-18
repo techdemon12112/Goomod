@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "QWQ",
+    "IPI",
+    "QWQ"
+  ],
+  "key": {
+    "Q": { "item": "minecraft:quartz_block" },
+    "W": { "item": "minecraft:water_bucket" },
+    "I": { "item": "minecraft:ice" },
+    "P": { "item": "goomod:basic_phage" }
+  },
+  "result": {
+    "id": "goomod:clean_phage",
+    "count": 1
+  },
+  "remainders": [
+    { "item": "minecraft:bucket" },
+    { "item": "minecraft:bucket" },
+    { "item": "minecraft:bucket" },
+    { "item": "minecraft:bucket" },
+    null,
+    { "item": "minecraft:bucket" },
+    { "item": "minecraft:bucket" },
+    { "item": "minecraft:bucket" },
+    { "item": "minecraft:bucket" }
+  ]
+}

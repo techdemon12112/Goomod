@@ -1,0 +1,23 @@
+{
+  "block.goomod.basic_phage": "Basic Phage",
+  "block.goomod.clean_phage": "Clean Phage",
+  "block.goomod.miners_phage": "Miner's Phage",
+  "block.goomod.volatile_phage": "Volatile Phage",
+  "block.goomod.philosophers_phage": "Philosopher's Phage",
+  "block.goomod.lightning_phage": "Lightning Phage",
+  "block.goomod.ultimate_phage_core": "Ultimate Phage Core",
+  "block.goomod.ultimate_phage_seeker": "Ultimate Phage Seeker",
+  "block.goomod.primed_goo": "Primed Goo",
+  "block.goomod.phage_disruptor": "Phage Disruptor",
+  "itemGroup.goomod.goo_tab": "The Phage",
+
+  "tooltip.goomod.basic_phage": "Eats Sculk! However this Phage is very rudimentary, and turns its food into useless Gravel.",
+  "tooltip.goomod.clean_phage": "Works just like Basic Phage, but leaves no byproduct.",
+  "tooltip.goomod.miners_phage": "Very similar to Clean Phage, but leaves behind useful light sources!",
+  "tooltip.goomod.volatile_phage": "Stand back! Has a nasty habit of Exploding, causing its own blocks to go flying, possibly creating new colonies.",
+  "tooltip.goomod.philosophers_phage": "Sometimes converts ores it finds into copies after dissolving!",
+  "tooltip.goomod.lightning_phage": "Spreads and dissolves at incredible speed. Releases powerful electric bursts when it dissipates - stay back!",
+  "tooltip.goomod.ultimate_phage_core": "Lures seekers to devour every sculk block in a 20-block radius. When the feast ends, it gathers itself and pops - returning all collected ores and XP.",
+  "tooltip.goomod.ultimate_phage_seeker": "A fragment of the Ultimate Phage. Seeks sculk and returns to its core when the feast ends.",
+  "tooltip.goomod.phage_disruptor": "Insert a Nether Star to continuously destroy all active Phage blocks in loaded chunks. Remove the star to stop."
+}

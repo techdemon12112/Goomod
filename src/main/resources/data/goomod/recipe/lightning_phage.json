@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "LCL",
+    "CBC",
+    "LCL"
+  ],
+  "key": {
+    "L": { "item": "minecraft:lightning_rod" },
+    "C": { "item": "minecraft:copper_block" },
+    "B": { "item": "goomod:volatile_phage" }
+  },
+  "result": {
+    "id": "goomod:lightning_phage",
+    "count": 1
+  }
+}

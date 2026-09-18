@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "SCS",
+    "PNP",
+    "SLS"
+  ],
+  "key": {
+    "S": { "item": "minecraft:sculk_catalyst" },
+    "C": { "item": "goomod:clean_phage" },
+    "P": { "item": "goomod:philosophers_phage" },
+    "N": { "item": "minecraft:nether_star" },
+    "L": { "item": "goomod:lightning_phage" }
+  },
+  "result": {
+    "id": "goomod:ultimate_phage_core",
+    "count": 1
+  }
+}

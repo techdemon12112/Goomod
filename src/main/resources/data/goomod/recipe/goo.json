@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "CSC",
+    "SGS",
+    "CSC"
+  ],
+  "key": {
+    "C": { "item": "minecraft:clay_ball" },
+    "S": { "item": "minecraft:slime_ball" },
+    "G": { "item": "minecraft:sculk_catalyst" }
+  },
+  "result": {
+    "id": "goomod:goo",
+    "count": 1
+  }
+}
