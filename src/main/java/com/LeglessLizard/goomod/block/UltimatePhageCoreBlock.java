@@ -4,11 +4,13 @@ import com.LeglessLizard.goomod.GooMod;
 import com.LeglessLizard.goomod.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.entity.projectile.ShulkerBullet;
@@ -33,7 +35,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class UltimatePhageCoreBlock extends Block implements EntityBlock {
     public static final Set<BlockPos> ACTIVE_CORES = ConcurrentHashMap.newKeySet();
 
-    private static final int SEEKERS_PER_TICK = 4000;
+    private static final int SEEKERS_PROCESSED_PER_TICK = 400;
+    private static final int WARDEN_SEEKERS_PER_CHECK = 32;
+    private static final int WARDEN_CHECK_INTERVAL = 10;
     private static final int MAX_FLIGHTS = 1200;
     private static final int FLIGHT_DURATION = 25;
     private static final int FORMING_TICKS = 60;
@@ -103,6 +107,7 @@ public class UltimatePhageCoreBlock extends Block implements EntityBlock {
                 }
                 core.particleFlights.clear();
                 core.wardenFlights.clear();
+                removeSeekerCounter(serverLevel, core);
             }
         }
         super.onRemove(state, level, pos, newState, moved);
@@ -124,6 +129,9 @@ public class UltimatePhageCoreBlock extends Block implements EntityBlock {
         if (!(be instanceof UltimatePhageCoreBlockEntity core)) return;
         core.projectilesThisTick = 0;
         if (core.wardenAttackCooldown > 0) core.wardenAttackCooldown--;
+
+        tickLinkedSeekers(level, core, random);
+        updateSeekerCounter(level, core);
 
         List<UltimatePhageCoreBlockEntity.PendingProjectile> projSnapshot = new ArrayList<>(core.pendingProjectiles);
         List<UltimatePhageCoreBlockEntity.PendingProjectile> projRemove = new ArrayList<>();
@@ -183,7 +191,7 @@ public class UltimatePhageCoreBlock extends Block implements EntityBlock {
 
         drawFlights(level, core);
 
-        if (!core.isReturning && core.wardenAttackCooldown <= 0 && level.getGameTime() % 10 == 0) {
+        if (!core.isReturning && core.wardenAttackCooldown <= 0 && level.getGameTime() % WARDEN_CHECK_INTERVAL == 0) {
             fireAtNearbyWarden(level, core, random);
         }
 
@@ -416,6 +424,83 @@ public class UltimatePhageCoreBlock extends Block implements EntityBlock {
         core.particleFlights.removeAll(done);
     }
 
+    private static void tickLinkedSeekers(ServerLevel level, UltimatePhageCoreBlockEntity core, RandomSource random) {
+        int size = core.linkedSeekers.size();
+        if (size == 0) return;
+
+        int processed = 0;
+        int checked = 0;
+        int budget = Math.min(SEEKERS_PROCESSED_PER_TICK, size);
+
+        while (processed < budget && checked < size) {
+            if (core.seekerProcessIndex >= core.linkedSeekers.size()) core.seekerProcessIndex = 0;
+            if (core.linkedSeekers.isEmpty()) break;
+
+            BlockPos seekerPos = new ArrayList<>(core.linkedSeekers).get(core.seekerProcessIndex++);
+            checked++;
+
+            if (!level.isLoaded(seekerPos)) continue;
+            if (!(level.getBlockState(seekerPos).getBlock() instanceof UltimatePhageSeekerBlock)) {
+                core.linkedSeekers.remove(seekerPos);
+                continue;
+            }
+
+            UltimatePhageSeekerBlock.processSeekerTick(level, seekerPos, random);
+            processed++;
+        }
+
+        if (level.getGameTime() % 40 == 0) {
+            core.linkedSeekers.removeIf(sp -> !level.isLoaded(sp) ||
+                    !(level.getBlockState(sp).getBlock() instanceof UltimatePhageSeekerBlock));
+            if (core.seekerProcessIndex >= core.linkedSeekers.size()) core.seekerProcessIndex = 0;
+        }
+    }
+
+    private static void updateSeekerCounter(ServerLevel level, UltimatePhageCoreBlockEntity core) {
+        ArmorStand stand = null;
+        if (core.seekerCounterId != null) {
+            var entity = level.getEntity(core.seekerCounterId);
+            if (entity instanceof ArmorStand armorStand && !armorStand.isRemoved()) stand = armorStand;
+        }
+
+        if (stand == null) {
+            AABB box = new AABB(core.getBlockPos()).inflate(2.0);
+            for (ArmorStand candidate : level.getEntitiesOfClass(ArmorStand.class, box,
+                    a -> a.getTags().contains("goomod_phage_counter"))) {
+                stand = candidate;
+                core.seekerCounterId = candidate.getUUID();
+                break;
+            }
+        }
+
+        if (stand == null) {
+            stand = new ArmorStand(level, core.getBlockPos().getX() + 0.5,
+                    core.getBlockPos().getY() + 2.2,
+                    core.getBlockPos().getZ() + 0.5);
+            stand.setInvisible(true);
+            stand.setNoGravity(true);
+            stand.setInvulnerable(true);
+            stand.setMarker(true);
+            stand.addTag("goomod_phage_counter");
+            stand.setCustomNameVisible(true);
+            level.addFreshEntity(stand);
+            core.seekerCounterId = stand.getUUID();
+        }
+
+        stand.setCustomName(Component.literal("Seekers: " + core.linkedSeekers.size()));
+        stand.setPos(core.getBlockPos().getX() + 0.5,
+                core.getBlockPos().getY() + 2.2,
+                core.getBlockPos().getZ() + 0.5);
+    }
+
+    private static void removeSeekerCounter(ServerLevel level, UltimatePhageCoreBlockEntity core) {
+        if (core.seekerCounterId != null) {
+            var entity = level.getEntity(core.seekerCounterId);
+            if (entity instanceof ArmorStand stand) stand.discard();
+            core.seekerCounterId = null;
+        }
+    }
+
     private static void tickWardenFlights(ServerLevel level, UltimatePhageCoreBlockEntity core) {
         List<UltimatePhageCoreBlockEntity.WardenFlight> done = new ArrayList<>();
 
@@ -470,34 +555,34 @@ public class UltimatePhageCoreBlock extends Block implements EntityBlock {
     }
 
     private static void fireAtNearbyWarden(ServerLevel level, UltimatePhageCoreBlockEntity core, RandomSource random) {
+        int size = core.linkedSeekers.size();
+        if (size == 0) return;
+
         Warden chosenWarden = null;
         BlockPos firingSeeker = null;
         double bestDistance = Double.MAX_VALUE;
+        int checked = 0;
 
-        for (Warden warden : level.getEntities(EntityType.WARDEN, Warden::isAlive)) {
-            BlockPos nearestSeeker = null;
-            double nearestDistance = Double.MAX_VALUE;
+        while (checked < Math.min(WARDEN_SEEKERS_PER_CHECK, size) && !core.linkedSeekers.isEmpty()) {
+            if (core.wardenSearchIndex >= core.linkedSeekers.size()) core.wardenSearchIndex = 0;
+            BlockPos seekerPos = new ArrayList<>(core.linkedSeekers).get(core.wardenSearchIndex++);
+            checked++;
 
-            for (BlockPos seekerPos : core.linkedSeekers) {
-                if (!level.isLoaded(seekerPos)) continue;
-                if (!(level.getBlockState(seekerPos).getBlock() instanceof UltimatePhageSeekerBlock)) continue;
+            if (!level.isLoaded(seekerPos)) continue;
+            if (!(level.getBlockState(seekerPos).getBlock() instanceof UltimatePhageSeekerBlock)) continue;
 
+            AABB searchBox = new AABB(seekerPos).inflate(20.0);
+            for (Warden warden : level.getEntitiesOfClass(Warden.class, searchBox, Warden::isAlive)) {
                 double distance = warden.distanceToSqr(
                         seekerPos.getX() + 0.5,
                         seekerPos.getY() + 0.5,
                         seekerPos.getZ() + 0.5
                 );
-
-                if (distance <= 20.0 * 20.0 && distance < nearestDistance) {
-                    nearestDistance = distance;
-                    nearestSeeker = seekerPos.immutable();
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    chosenWarden = warden;
+                    firingSeeker = seekerPos.immutable();
                 }
-            }
-
-            if (nearestSeeker != null && nearestDistance < bestDistance) {
-                bestDistance = nearestDistance;
-                chosenWarden = warden;
-                firingSeeker = nearestSeeker;
             }
         }
 
