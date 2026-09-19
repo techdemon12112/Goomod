@@ -9,6 +9,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.entity.projectile.ShulkerBullet;
+import java.util.UUID;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -30,6 +31,10 @@ public class UltimatePhageCoreBlockEntity extends BlockEntity {
     public int projectileCooldown = 0;
     public int projectilesThisTick = 0;
     public int wardenAttackCooldown = 0;
+    public int seekerProcessIndex = 0;
+    public int wardenSearchIndex = 0;
+    public UUID seekerCounterId = null;
+    public final List<BlockPos> activeSeekerSnapshot = new ArrayList<>();
 
     public final Set<BlockPos> linkedSeekers = new HashSet<>();
     public final List<PendingProjectile> pendingProjectiles = new ArrayList<>();

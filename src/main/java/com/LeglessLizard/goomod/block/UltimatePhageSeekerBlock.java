@@ -1,6 +1,7 @@
 package com.LeglessLizard.goomod.block;
 
 import com.LeglessLizard.goomod.GooMod;
+import com.LeglessLizard.goomod.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -145,6 +146,121 @@ public class UltimatePhageSeekerBlock extends Block {
         }
         level.scheduleTick(pos, this, 1);
     }
+
+    /** Panic: after the core is broken, seekers decay with lightning-phage effect. */
+    private void handlePanic(ServerLevel level, BlockPos pos, RandomSource random) {
+        Integer cd = PANIC_DECAY.get(pos);
+        if (cd == null) {
+            // Start the decay countdown
+            PANIC_DECAY.put(pos, 20 + random.nextInt(80));
+            level.sendParticles(ParticleTypes.SCULK_SOUL,
+                    pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 8, 0.25, 0.25, 0.25, 0.04);
+            level.scheduleTick(pos, this, 1);
+            return;
+        }
+        if (cd > 0) {
+            PANIC_DECAY.put(pos, cd - 1);
+            // Occasional nervous crackle
+            if (random.nextInt(3) == 0) {
+                level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                        pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+                        2, 0.2, 0.2, 0.2, 0.05);
+            }
+            level.scheduleTick(pos, this, 1);
+            return;
+        }
+
+        // Detonate with lightning effect
+        double x = pos.getX() + 0.5;
+        double y = pos.getY() + 0.5;
+        double z = pos.getZ() + 0.5;
+        int intensity = 2 + random.nextInt(3);
+        level.sendParticles(ParticleTypes.FIREWORK, x, y, z, 20 * intensity, 0.4, 0.4, 0.4, 0.2);
+        level.sendParticles(ParticleTypes.ELECTRIC_SPARK, x, y, z, 15 * intensity, 0.5, 0.5, 0.5, 0.25);
+        level.sendParticles(ParticleTypes.FLASH, x, y, z, 1, 0, 0, 0, 0);
+        level.sendParticles(ParticleTypes.END_ROD, x, y, z, 6 * intensity, 0.4, 0.4, 0.4, 0.1);
+        level.playSound(null, pos, SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, SoundSource.BLOCKS, 3.0F, 0.8F + random.nextFloat() * 0.4F);
+
+        // Damage nearby living entities
+        AABB aabb = new AABB(pos).inflate(3.0);
+        List<LivingEntity> entities = level.getEntitiesOfClass(LivingEntity.class, aabb);
+        for (LivingEntity entity : entities) {
+            entity.hurt(level.damageSources().lightningBolt(), 10.0f);
+        }
+
+        level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+    }
+
+    private BlockPos findNearestCore(Level level, BlockPos pos, int radius) {
+        BlockPos nearest = null;
+        double nearestDist = Double.MAX_VALUE;
+        for (BlockPos p : UltimatePhageCoreBlock.ACTIVE_CORES) {
+            if (!level.isLoaded(p)) continue;
+            double d = p.distSqr(pos);
+            if (d < nearestDist && d <= radius * radius) { nearestDist = d; nearest = p; }
+        }
+        return nearest;
+    }
+    @Override
+    protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+        processSeekerTick(level, pos, random);
+    }
+
+    public static void processSeekerTick(ServerLevel level, BlockPos pos, RandomSource random) {
+        if (PANICKED.contains(pos)) {
+            handlePanic(level, pos, random);
+            return;
+        }
+
+        BlockPos corePos = SEEKER_TO_CORE.get(pos);
+        if (corePos == null) {
+            corePos = findNearestCore(level, pos, 20);
+            if (corePos != null) {
+                registerSeeker(pos, corePos);
+                BlockEntity coreBe = level.getBlockEntity(corePos);
+                if (coreBe instanceof UltimatePhageCoreBlockEntity c) c.linkedSeekers.add(pos.immutable());
+            } else {
+                return;
+            }
+        }
+
+        if (!level.isLoaded(corePos)) return;
+
+        BlockEntity coreBe = level.getBlockEntity(corePos);
+        if (!(coreBe instanceof UltimatePhageCoreBlockEntity core)) {
+            PANICKED.add(pos.immutable());
+            return;
+        }
+
+        if (core.isReturning) return;
+
+        if (GooMod.SPREADING_ENABLED) {
+            Integer cd = SPREAD_COOLDOWNS.getOrDefault(pos, 0);
+            if (cd > 0) {
+                SPREAD_COOLDOWNS.put(pos, cd - 1);
+            } else {
+                BlockPos.MutableBlockPos np = new BlockPos.MutableBlockPos();
+                boolean converted = false;
+                for (int dx = -1; dx <= 1 && !converted; dx++) for (int dy = -1; dy <= 1 && !converted; dy++) for (int dz = -1; dz <= 1 && !converted; dz++) {
+                    if (dx == 0 && dy == 0 && dz == 0) continue;
+                    np.set(pos.getX() + dx, pos.getY() + dy, pos.getZ() + dz);
+                    if (!level.isLoaded(np)) continue;
+                    BlockState neighbor = level.getBlockState(np);
+                    if (SCULK_BLOCKS.contains(neighbor.getBlock())) {
+                        level.setBlock(np, ModBlocks.ULTIMATE_PHAGE_SEEKER_BLOCK.get().defaultBlockState(), 3);
+                        registerSeeker(np, corePos);
+                        core.linkedSeekers.add(np.immutable());
+                        core.totalConverted++;
+                        core.xpAccumulated++;
+                        GooBlock.CONVERTED_COUNT.incrementAndGet();
+                        converted = true;
+                    }
+                }
+                SPREAD_COOLDOWNS.put(pos, 8 + random.nextInt(8));
+            }
+        }
+    }
+
 
     /** Panic: after the core is broken, seekers decay with lightning-phage effect. */
     private void handlePanic(ServerLevel level, BlockPos pos, RandomSource random) {
