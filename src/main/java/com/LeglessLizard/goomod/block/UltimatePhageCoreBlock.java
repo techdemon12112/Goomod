@@ -23,6 +23,7 @@ import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
@@ -426,17 +427,28 @@ public class UltimatePhageCoreBlock extends Block implements EntityBlock {
 
     private static void tickLinkedSeekers(ServerLevel level, UltimatePhageCoreBlockEntity core, RandomSource random) {
         int size = core.linkedSeekers.size();
-        if (size == 0) return;
+        if (size == 0) {
+            core.activeSeekerSnapshot.clear();
+            core.seekerProcessIndex = 0;
+            return;
+        }
 
+        if (core.activeSeekerSnapshot.isEmpty() || level.getGameTime() % 40 == 0) {
+            core.activeSeekerSnapshot.clear();
+            core.activeSeekerSnapshot.addAll(core.linkedSeekers);
+            core.seekerProcessIndex = 0;
+        }
+
+        int snapshotSize = core.activeSeekerSnapshot.size();
         int processed = 0;
         int checked = 0;
-        int budget = Math.min(SEEKERS_PROCESSED_PER_TICK, size);
+        int budget = Math.min(SEEKERS_PROCESSED_PER_TICK, snapshotSize);
 
         while (processed < budget && checked < size) {
-            if (core.seekerProcessIndex >= core.linkedSeekers.size()) core.seekerProcessIndex = 0;
-            if (core.linkedSeekers.isEmpty()) break;
+            if (core.seekerProcessIndex >= core.activeSeekerSnapshot.size()) core.seekerProcessIndex = 0;
+            if (core.activeSeekerSnapshot.isEmpty()) break;
 
-            BlockPos seekerPos = new ArrayList<>(core.linkedSeekers).get(core.seekerProcessIndex++);
+            BlockPos seekerPos = core.activeSeekerSnapshot.get(core.seekerProcessIndex++);
             checked++;
 
             if (!level.isLoaded(seekerPos)) continue;
@@ -452,7 +464,8 @@ public class UltimatePhageCoreBlock extends Block implements EntityBlock {
         if (level.getGameTime() % 40 == 0) {
             core.linkedSeekers.removeIf(sp -> !level.isLoaded(sp) ||
                     !(level.getBlockState(sp).getBlock() instanceof UltimatePhageSeekerBlock));
-            if (core.seekerProcessIndex >= core.linkedSeekers.size()) core.seekerProcessIndex = 0;
+            core.activeSeekerSnapshot.removeIf(sp -> !core.linkedSeekers.contains(sp));
+            if (core.seekerProcessIndex >= core.activeSeekerSnapshot.size()) core.seekerProcessIndex = 0;
         }
     }
 
