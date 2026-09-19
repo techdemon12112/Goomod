@@ -84,6 +84,9 @@ public class UltimatePhageCoreBlock extends Block implements EntityBlock {
             if (be instanceof UltimatePhageCoreBlockEntity core) {
                 for (BlockPos sp : core.linkedSeekers) {
                     UltimatePhageSeekerBlock.PANICKED.add(sp.immutable());
+                    if (serverLevel.isLoaded(sp)) {
+                        serverLevel.scheduleTick(sp, ModBlocks.ULTIMATE_PHAGE_SEEKER_BLOCK.get(), 1);
+                    }
                 }
                 serverLevel.playSound(null, pos, SoundEvents.WITHER_SPAWN, SoundSource.BLOCKS, 1.5F, 0.5F);
 
@@ -493,7 +496,6 @@ public class UltimatePhageCoreBlock extends Block implements EntityBlock {
             stand.setInvisible(true);
             stand.setNoGravity(true);
             stand.setInvulnerable(true);
-            stand.setMarker(true);
             stand.addTag("goomod_phage_counter");
             stand.setCustomNameVisible(true);
             level.addFreshEntity(stand);
